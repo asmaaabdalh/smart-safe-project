@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/signin_screen.dart';
 // import 'screens/signin_screen.dart'; // We will create this file next
 
 Future<void> main() async {
@@ -26,7 +27,7 @@ class MyApp extends StatelessWidget {
       title: 'Smart Safe App',
       theme: ThemeData.dark(),
       // The first screen the user will see
-      // home: SignInScreen(), // We will uncomment this later
+       home: SignInScreen()
     );
   }
 }
