@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار MQTT للتطبيق</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #fdbb2d;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+        .connected {
+            background-color: #4CAF50;
+        }
+        .disconnected {
+            background-color: #F44336;
+        }
+        button {
+            background: #fdbb2d;
+            color: #1a2a6c;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #ffa000;
+            transform: translateY(-2px);
+        }
+        input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 250px;
+            margin: 5px;
+        }
+        .log {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+        .topic {
+            color: #4CAF50;
+        }
+        .message {
+            color: #fdbb2d;
+        }
+        .flex-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>اختبار اتصال MQTT للتطبيق</h1>
+        
+        <div class="card">
+            <h2>حالة الاتصال</h2>
+            <div class="status">
+                <div id="statusIndicator" class="status-indicator disconnected"></div>
+                <span id="statusText">غير متصل</span>
+            </div>
+            <div class="flex-row">
+                <button id="connectButton" onclick="connect()">اتصال بـ MQTT</button>
+                <button id="disconnectButton" onclick="disconnect()" disabled>قطع الاتصال</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>محاكاة ESP32</h2>
+            <p>استخدم هذا القسم لمحاكاة استجابة الخزنة (ESP32)</p>
+            <div class="flex-row">
+                <button onclick="simulateLock()">محاكاة حالة: مغلق</button>
+                <button onclick="simulateUnlock()">محاكاة حالة: مفتوح</button>
+                <button onclick="simulateMovement()">محاكاة حركة مريبة</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>إرسال أمر للخزنة</h2>
+            <p>أرسل كلمة المرور لفتح الخزنة (محاكاة للتطبيق)</p>
+            <div class="flex-row">
+                <input type="password" id="passwordInput" placeholder="كلمة المرور">
+                <button onclick="sendPassword()">إرسال كلمة المرور</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>سجل الأحداث</h2>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let client;
+        const broker = "broker.hivemq.com";
+        const port = 8000; // MQTT over WebSockets
+        const clientId = "web_test_" + parseInt(Math.random() * 1000000);
+        
+        // مواضيع MQTT
+        const topicUnlock = "safe/unlock";
+        const topicStatus = "safe/status";
+        const topicAlarm = "safe/alarm";
+        
+        const logElement = document.getElementById('log');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        
+        function log(message) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            logElement.innerHTML += `<div>[${timeString}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(connected) {
+            if (connected) {
+                statusIndicator.className = 'status-indicator connected';
+                statusText.textContent = 'متصل بنجاح';
+                connectButton.disabled = true;
+                disconnectButton.disabled = false;
+            } else {
+                statusIndicator.className = 'status-indicator disconnected';
+                statusText.textContent = 'غير متصل';
+                connectButton.disabled = false;
+                disconnectButton.disabled = true;
+            }
+        }
+        
+        function connect() {
+            log('جاري الاتصال بوسيط MQTT...');
+            
+            client = new Paho.MQTT.Client(broker, port, clientId);
+            
+            client.onConnectionLost = onConnectionLost;
+            client.onMessageArrived = onMessageArrived;
+            
+            client.connect({
+                onSuccess: onConnect,
+                useSSL: true,
+                timeout: 3,
+                onFailure: onFailure
+            });
+        }
+        
+        function onConnect() {
+            log('تم الاتصال بنجاح بوسيط MQTT');
+            updateStatus(true);
+            
+            // الاشتراك في مواضيع الاستقبال
+            client.subscribe(topicStatus);
+            client.subscribe(topicAlarm);
+            log(`تم الاشتراك في المواضيع: ${topicStatus}, ${topicAlarm}`);
+        }
+        
+        function onFailure(response) {
+            log(`فشل الاتصال: ${response.errorMessage}`);
+            updateStatus(false);
+        }
+        
+        function onConnectionLost(response) {
+            log(`فقدان الاتصال: ${response.errorMessage}`);
+            updateStatus(false);
+        }
+        
+        function onMessageArrived(message) {
+            log(`تم استلام رسالة: <span class="topic">${message.destinationName}</span>: <span class="message">${message.payloadString}</span>`);
+        }
+        
+        function disconnect() {
+            if (client) {
+                client.disconnect();
+                log('تم قطع الاتصال بوسيط MQTT');
+                updateStatus(false);
+            }
+        }
+        
+        function sendPassword() {
+            if (!client || !client.isConnected()) {
+                log('يجب الاتصال أولاً بوسيط MQTT');
+                return;
+            }
+            
+            const passwordInput = document.getElementById('passwordInput');
+            const password = passwordInput.value.trim();
+            
+            if (!password) {
+                log('يرجى إدخال كلمة المرور');
+                return;
+            }
+            
+            const message = new Paho.MQTT.Message(password);
+            message.destinationName = topicUnlock;
+            client.send(message);
+            
+            log(`تم إرسال كلمة المرور إلى topic: ${topicUnlock}`);
+            passwordInput.value = '';
+        }
+        
+        // محاكاة استجابة الخزنة
+        function simulateLock() {
+            if (!client || !client.isConnected()) return;
+            
+            const message = new Paho.MQTT.Message("Locked");
+            message.destinationName = topicStatus;
+            client.send(message);
+            
+            log('تم محاكاة حالة: مغلق');
+        }
+        
+        function simulateUnlock() {
+            if (!client || !client.isConnected()) return;
+            
+            const message = new Paho.MQTT.Message("Unlocked");
+            message.destinationName = topicStatus;
+            client.send(message);
+            
+            log('تم محاكاة حالة: مفتوح');
+        }
+        
+        function simulateMovement() {
+            if (!client || !client.isConnected()) return;
+            
+            const message = new Paho.MQTT.Message("Movement detected!");
+            message.destinationName = topicAlarm;
+            client.send(message);
+            
+            log('تم محاكاة اكتشاف حركة مريبة');
+        }
+        
+        // إضافة إمكانية استخدام Enter لإرسال كلمة المرور
+        document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendPassword();
+            }
+        });
+        
+        log('جاهز للاختبار. اضغط على "اتصال بـ MQTT" للبدء.');
+    </script>
+</body>
+</html>
