@@ -1,99 +1,134 @@
 import 'package:flutter/material.dart';
-import 'create_account_screen.dart';
-class SignInScreen extends StatelessWidget {
+import '../services/supabase_service.dart'; // Import the Supabase service
+import 'home_screen.dart'; // Import the home screen
+import 'create_account_screen.dart'; // Import the create account screen
+
+// Change the screen to be Stateful
+class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
   @override
+  State<SignInScreen> createState() => _SignInScreenState();
+}
+
+class _SignInScreenState extends State<SignInScreen> {
+  // To control the text input fields
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  
+  // To define the loading state when buttons are pressed
+  bool _isLoading = false;
+
+  // Instance of the Supabase service
+  final _supabaseService = SupabaseService();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  /// Sign In function
+  Future<void> _signIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // Check for empty fields
+    if (email.isEmpty || password.isEmpty) {
+      _showSnackBar('Email and password cannot be empty.');
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final errorMessage = await _supabaseService.signInWithPassword(
+      email: email,
+      password: password,
+    );
+
+    // Show an error message if the operation fails
+    if (errorMessage != null) {
+      _showSnackBar(errorMessage);
+    } else {
+      _showSnackBar('Signed in successfully!');
+      // Navigate the user to the home screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  /// Function to show a message to the user
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Scaffold هو الهيكل الأساسي لأي شاشة في فلاتر
     return Scaffold(
-      // SafeArea بتضمن إن محتوى الشاشة ميتداخلش مع أجزاء النظام زي شريط الإشعارات
-      body: SafeArea(
-        // Center بيخلي كل حاجة جواه في نص الشاشة
-        child: Center(
-          // Padding بيدي مساحة فاضية حوالين المحتوى عشان ميبقاش لازق في حواف الشاشة
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            // Column بيرص كل حاجة جواه بشكل عمودي (فوق بعض)
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center, // خلي المحتوى في نص الشاشة بالطول
-              crossAxisAlignment: CrossAxisAlignment.stretch, // خلي المحتوى ياخد عرض الشاشة كله
-              children: [
-                // -- عنوان الشاشة --
-                Text(
-                  'Sign In',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+      appBar: AppBar(
+        title: const Text('Sign In / Sign Up'),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              // Email field
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
                 ),
-                SizedBox(height: 8), // مسافة فاضية صغيرة
-                Text(
-                  'Welcome back! Please sign in to continue.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[400],
-                  ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 20),
+              // Password field
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
                 ),
-                SizedBox(height: 48), // مسافة فاضية كبيرة
-
-                // -- حقل إدخال البريد الإلكتروني --
-                TextFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                SizedBox(height: 16), // مسافة فاضية متوسطة
-
-                // -- حقل إدخال كلمة المرور --
-                TextFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  obscureText: true, // لإخفاء كلمة المرور
-                ),
-                SizedBox(height: 24),
-
-                // -- زر تسجيل الدخول --
-                ElevatedButton(
-                  onPressed: () {
-                    // هنا هنكتب الكود اللي بينادي على شغل الباك إند بعدين
-                    print('Sign In button pressed!');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'Sign In',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-                SizedBox(height: 16),
-
-                // -- زر إنشاء حساب جديد --
-                TextButton(
-                  onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
-                      );
-                    },
-                  child: Text("Don't have an account? Create one"),
-                ),
-              ],
-            ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 20),
+              // Sign In button
+              ElevatedButton(
+                onPressed: _isLoading ? null : _signIn,
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Sign In'),
+              ),
+              const SizedBox(height: 10),
+              // Sign Up button
+              TextButton(
+                onPressed: _isLoading ? null : () {
+                   Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
+                  );
+                },
+                child: const Text('No account? Create a new one'),
+              ),
+            ],
           ),
         ),
       ),
