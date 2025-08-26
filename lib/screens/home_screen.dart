@@ -1,16 +1,16 @@
 // lib/screens/home_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Add this line
+import 'package:provider/provider.dart';
 import '../services/mqtt_service.dart';
 import '../services/supabase_service.dart';
+import 'signin_screen.dart'; // Add this import
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // استخدم Consumer للاستماع للتغييرات في MqttService
     return Consumer<MqttService>(
       builder: (context, mqttService, child) {
         final _passwordController = TextEditingController();
@@ -32,7 +32,11 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   final supabaseService = SupabaseService();
                   supabaseService.signOut();
-                  // TODO: أضف هنا الانتقال إلى شاشة الدخول
+                  // Aadd the navigation to the sign-in screen
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SignInScreen()),
+                  );
                 },
               ),
             ],
@@ -42,7 +46,6 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // -- كارت عرض حالة الخزنة --
                 Card(
                   elevation: 4,
                   shape: RoundedRectangleBorder(
@@ -58,7 +61,7 @@ class HomePage extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          mqttService.safeStatus, // القيمة تأتي من الـ Service
+                          mqttService.safeStatus,
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
@@ -71,7 +74,6 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
 
-                // -- حقل إدخال كلمة المرور لفتح الخزنة --
                 TextFormField(
                   controller: _passwordController,
                   decoration: InputDecoration(
@@ -84,7 +86,6 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // -- زر فتح الخزنة --
                 ElevatedButton(
                   onPressed: _unlockSafe,
                   style: ElevatedButton.styleFrom(
