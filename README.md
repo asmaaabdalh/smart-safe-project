@@ -84,6 +84,7 @@ In the main.cpp file, update the Wi-Fi and HiveMQ credentials.
 Build and upload the code to your ESP32.
 
  Team Members
+ 
 [Shahd Walid] - Role ( Hardware & Firmware Lead)
 
 [Asmaa Abdullah] - Role (Flutter UI Developer)
