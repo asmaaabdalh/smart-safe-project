@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/mqtt_service.dart';
 import '../services/supabase_service.dart';
-import 'signin_screen.dart'; // Add this import
+import 'signin_screen.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -32,7 +32,6 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   final supabaseService = SupabaseService();
                   supabaseService.signOut();
-                  // Aadd the navigation to the sign-in screen
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => const SignInScreen()),
@@ -44,32 +43,48 @@ class HomePage extends StatelessWidget {
           body: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: mqttService.isConnected ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: mqttService.isConnected ? Colors.green : Colors.red,
+                    ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Safe Status',
-                          style: TextStyle(fontSize: 18, color: Colors.grey[400]),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Safe Status',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.7),
                         ),
-                        const SizedBox(height: 8),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        mqttService.safeStatus,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: mqttService.safeStatus == 'Locked' ? Colors.redAccent : Colors.green,
+                        ),
+                      ),
+                      // Display wrong attempts count if the status is ALARM
+                      if (mqttService.safeStatus == 'ALARM')
                         Text(
-                          mqttService.safeStatus,
+                          'Wrong Attempts: ${mqttService.wrongAttempts}/3',
                           style: TextStyle(
-                            fontSize: 32,
+                            fontSize: 18,
+                            color: Colors.redAccent,
                             fontWeight: FontWeight.bold,
-                            color: mqttService.safeStatus == 'Locked' ? Colors.redAccent : Colors.green,
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 48),

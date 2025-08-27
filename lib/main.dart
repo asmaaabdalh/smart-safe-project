@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:provider/provider.dart'; // Add this dependency
+import 'package:provider/provider.dart';
 import 'screens/signin_screen.dart';
 import 'services/mqtt_service.dart';
 
@@ -38,6 +38,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Smart Safe App',
       theme: ThemeData.dark(),
+      debugShowCheckedModeBanner: false, 
       home: const SignInScreen()
     );
   }
