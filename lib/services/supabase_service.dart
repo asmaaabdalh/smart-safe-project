@@ -65,4 +65,37 @@ class SupabaseService {
    return 'An unexpected error occurred: ${e.toString()}';
   }
  }
+ Future<List<Map<String, dynamic>>> getAccessLogs() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      return []; // Return empty list if no user is logged in
+    }
+
+    try {
+      final response = await supabase
+          .from('access_logs')
+          .select()
+          .eq('user_id', userId) // Filter by the current user's ID
+          .order('created_at', ascending: false); // Order by newest first
+      
+      return List<Map<String, dynamic>>.from(response);
+
+    } catch (e) {
+      print('Error fetching access logs: $e');
+      return [];
+    }
+  }
+  Future<String?> resetPasswordForEmail(String email) async {
+    try {
+      await supabase.auth.resetPasswordForEmail(
+        email,
+        // redirectTo: 'com.example.smart_safe_app://login-callback/', // Optional for deep linking
+      );
+      return null; // Return null on success
+    } on AuthException catch (e) {
+      return e.message; // Return error message on failure
+    } catch (e) {
+      return 'An unexpected error occurred.';
+    }
+  }
 }

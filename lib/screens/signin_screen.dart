@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/supabase_service.dart'; // Import the Supabase service
 import 'home_screen.dart'; // Import the home screen
 import 'create_account_screen.dart'; // Import the create account screen
+import 'forgot_password_screen.dart'; // Import the forgot password screen
 
-// Change the screen to be Stateful
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -12,14 +12,13 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  // To control the text input fields
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
-  // To define the loading state when buttons are pressed
   bool _isLoading = false;
+  
+  // -->> (Step 1) Add a state variable to track password visibility <<--
+  bool _isPasswordVisible = false;
 
-  // Instance of the Supabase service
   final _supabaseService = SupabaseService();
 
   @override
@@ -29,7 +28,6 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
-  /// Sign In function
   Future<void> _signIn() async {
     setState(() {
       _isLoading = true;
@@ -38,7 +36,6 @@ class _SignInScreenState extends State<SignInScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // Check for empty fields
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar('Email and password cannot be empty.');
       setState(() {
@@ -52,12 +49,10 @@ class _SignInScreenState extends State<SignInScreen> {
       password: password,
     );
 
-    // Show an error message if the operation fails
     if (errorMessage != null) {
       _showSnackBar(errorMessage);
     } else {
       _showSnackBar('Signed in successfully!');
-      // Navigate the user to the home screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
@@ -69,7 +64,6 @@ class _SignInScreenState extends State<SignInScreen> {
     });
   }
 
-  /// Function to show a message to the user
   void _showSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,16 +94,48 @@ class _SignInScreenState extends State<SignInScreen> {
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 20),
-              // Password field
+              
+              // -->> (Step 2) Modify the Password TextFormField <<--
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                // Use the state variable to control text visibility
+                obscureText: !_isPasswordVisible, 
+                decoration: InputDecoration(
                   labelText: 'Password',
                   border: OutlineInputBorder(),
+                  // Add the icon button to the end of the field
+                  suffixIcon: IconButton(
+                    // Choose the icon based on the visibility state
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    // -->> (Step 3) Toggle the state when the icon is pressed <<--
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
               ),
               const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                      );
+                    },
+                    child: const Text('Forgot Password?'),
+                  ),
+                ),
+              ),
               // Sign In button
               ElevatedButton(
                 onPressed: _isLoading ? null : _signIn,
@@ -118,10 +144,11 @@ class _SignInScreenState extends State<SignInScreen> {
                     : const Text('Sign In'),
               ),
               const SizedBox(height: 10),
+              
               // Sign Up button
               TextButton(
                 onPressed: _isLoading ? null : () {
-                   Navigator.push(
+                  Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
                   );
