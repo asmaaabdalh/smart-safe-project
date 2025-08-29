@@ -6,12 +6,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.tools import tool
 import threading
 import time
-import os
 from supabase import create_client, Client
 from datetime import datetime
 
-# NOTE: Environment variables are hardcoded for demonstration.
-# This is a bad practice for security and maintainability.
+# Configuration (hardcoded as requested)
 BROKER = "broker.hivemq.com"
 PORT = 1883
 SUPABASE_URL = "https://cojyysahbrvpqtydwscz.supabase.co"
@@ -25,6 +23,7 @@ TOPIC_IR = "safe/ir"
 TOPIC_LDR = "safe/ldr"
 TOPIC_PASSWORD = "safe/password"
 TOPIC_BUZZER = "safe/buzzer"
+TOPIC_REQUEST_UPDATE = "safe/request_update"
 
 # Supabase Setup
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -61,17 +60,15 @@ mqtt_client.connect(BROKER, PORT, 60)
 mqtt_client.loop_start()
 
 # Function to log messages to Supabase
-# MODIFIED: Changed table name to "Chatbot"
 def log_to_supabase(message):
     data = {
         "message": message,
         "created_at": datetime.now().isoformat()
     }
-    # Changed table name to match the Supabase schema
     supabase.table("Chatbot").insert(data).execute()
     print(f"Logged to Supabase: {message}")
 
-# Tool Functions - now using the @tool decorator
+# Tool Functions - using the @tool decorator
 @tool
 def get_ir_reading():
     """Get the latest IR sensor reading. Returns "IR reading not available" if no data."""
@@ -131,11 +128,19 @@ def deactivate_buzzer():
 @tool
 def get_system_status():
     """Get the current status of all system components, including IR and LDR readings."""
+    # Request latest sensor data
+    mqtt_client.publish(TOPIC_REQUEST_UPDATE, "update")
+    
+    # Wait a moment for the ESP32 to respond
+    time.sleep(0.5)
+    
     status = ""
     if latest_ir is not None:
-        status += f"IR: {latest_ir}, "
+        status += f"IR: {'Motion detected' if latest_ir == 1 else 'No motion'}, "
     if latest_ldr is not None:
-        status += f"LDR: {latest_ldr}"
+        light_status = "Bright" if latest_ldr > 1000 else "Dark"
+        status += f"LDR: {light_status} ({latest_ldr})"
+    
     result = status or "No sensor data available"
     log_to_supabase(f"System status requested: {result}")
     return result
@@ -143,13 +148,11 @@ def get_system_status():
 @tool
 def get_access_logs():
     """Get the 10 most recent access logs from the database."""
-    # MODIFIED: Changed table name to "Chatbot"
     response = supabase.table("Chatbot").select("*").order("created_at", desc=True).limit(10).execute()
     logs = response.data
     if logs:
         result = "Recent access logs:\n"
         for log in logs:
-            # Assumes the column in 'Chatbot' is also named 'message'
             result += f"{log['created_at']}: {log['message']}\n"
         return result
     else:
@@ -197,82 +200,46 @@ Rules:
 4. None of the tools require any parameters - just call them by name.
 """
 
-# Get API key from environment
+# Initialize the LLM
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash",
     google_api_key=GOOGLE_API_KEY
 )
 
+# Initialize the agent
 agent = initialize_agent(
     tools=tools,
     llm=llm,
     agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
-    handle_parsing_errors=True,
-    return_only_outputs=True
+    handle_parsing_errors=True
 )
 
-# Flask Routes
+# Flask routes
+@app.route('/')
+def home():
+    return "Safe Box IoT Assistant API is running!"
+
 @app.route('/chat', methods=['POST'])
 def chat():
-    data = request.get_json()
-    user_input = data.get('text', '')
-    
-    log_to_supabase(f"User query: {user_input}")
-    
     try:
-        reply = agent.invoke({
-            "input": user_input,
-            "chat_history": [{"role": "system", "content": system_prompt}]
-        })
-        assistant_response = reply.get('output', '')
+        user_message = request.json.get('text', '')
+        if not user_message:
+            return jsonify({'reply': 'Please provide a message'})
+        
+        # Use the agent to process the message
+        response = agent.run(system_prompt + "\nUser: " + user_message)
+        return jsonify({'reply': response})
+    
     except Exception as e:
-        print(f"Error during agent invocation: {e}")
-        assistant_response = "An internal error occurred. Please try again."
-    
-    log_to_supabase(f"Assistant response: {assistant_response}")
-    
-    return jsonify({'reply': assistant_response})
+        print(f"Error in chat endpoint: {e}")
+        return jsonify({'reply': 'Sorry, I encountered an error processing your request.'})
 
 @app.route('/status', methods=['GET'])
 def status():
-    return jsonify({
-        'ir_sensor': latest_ir,
-        'ldr_sensor': latest_ldr
-    })
-
-@app.route('/logs', methods=['GET'])
-def get_logs():
-    limit = request.args.get('limit', 10, type=int)
-    # MODIFIED: Changed table name to "Chatbot"
-    response = supabase.table("Chatbot").select("*").order("created_at", desc=True).limit(limit).execute()
-    return jsonify(response.data)
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint for Docker"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'services': {
-            'mqtt': mqtt_client.is_connected(),
-            'supabase': SUPABASE_URL is not None
-        }
-    })
-
-# Background thread to periodically request sensor updates
-def sensor_update_loop():
-    while True:
-        # This topic is for the ESP32 to know when to send updates.
-        # It's okay if it's not connected yet, the message will just be ignored.
-        mqtt_client.publish("safe/request_update", "1") 
-        time.sleep(5)
-
-# Start the sensor update thread
-sensor_thread = threading.Thread(target=sensor_update_loop, daemon=True)
-sensor_thread.start()
+    """Get current system status"""
+    status = get_system_status()
+    return jsonify({'status': status})
 
 if __name__ == '__main__':
-    # NOTE: Debug mode is also hardcoded here
-    debug_mode = True
-    app.run(host='0.0.0.0', port=8000, debug=debug_mode)
+    app.run(host='0.0.0.0', port=8000, debug=True)
