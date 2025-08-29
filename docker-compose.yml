@@ -1,0 +1,17 @@
+services:
+  flask-chatbot:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    networks:
+      - safe-network
+
+networks:
+  safe-network:
+    driver: bridge
+
+volumes:
+  app-data:
