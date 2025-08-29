@@ -1,10 +1,12 @@
+// lib/screens/home_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/mqtt_service.dart';
 import '../services/supabase_service.dart';
 import 'signin_screen.dart';
 import 'access_log_screen.dart';
 
-// 1. We convert the screen to a StatefulWidget to manage its state locally.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -13,14 +15,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // 2. We define the controllers and services here, once.
   final _passwordController = TextEditingController();
-  final MqttService _mqttService = MqttService();
   final SupabaseService _supabaseService = SupabaseService();
-
-  // A variable to hold the current status (can be updated later)
-  final String _safeStatus = 'Locked'; 
-  final bool _isConnected = true; // Dummy data for UI, can be updated from MQTT
   bool _isPasswordVisible = false;
 
   @override
@@ -29,13 +25,10 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // 3. The unlock function now lives inside the State class.
-  void _unlockSafe() {
+  void _unlockSafe(MqttService mqttService) {
     if (_passwordController.text.isNotEmpty) {
-      // We call the publishPassword function from our service instance
-      _mqttService.publishPassword(_passwordController.text.trim());
+      mqttService.publishPassword(_passwordController.text.trim());
       _passwordController.clear();
-      // You can add a SnackBar here for user feedback if you like
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unlock command sent!')),
       );
@@ -46,8 +39,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Safe Control'),
-        automaticallyImplyLeading: false,
+        title: const Text('Smart Safe'),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -60,9 +52,9 @@ class _HomePageState extends State<HomePage> {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async { // Made async for proper signout
+            onPressed: () async {
               await _supabaseService.signOut();
-              if(mounted){
+              if (mounted) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const SignInScreen()),
@@ -72,89 +64,90 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 4. The UI is the same, but uses our local state variables.
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _isConnected ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _isConnected ? Colors.green : Colors.red,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'Safe Status',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white.withOpacity(0.7),
+        child: Consumer<MqttService>(
+          builder: (context, mqttService, child) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              mqttService.isConnected ? Icons.circle : Icons.error,
+                              color: mqttService.isConnected ? Colors.green : Colors.red,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              mqttService.isConnected ? 'Connected to MQTT' : 'Connecting...',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Safe Status: ${mqttService.safeStatus}',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        if (mqttService.wrongAttempts > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Wrong Attempts: ${mqttService.wrongAttempts}',
+                              style: const TextStyle(fontSize: 16, color: Colors.yellow),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _safeStatus,
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: _safeStatus == 'Locked' ? Colors.redAccent : Colors.green,
+                ),
+                const SizedBox(height: 32),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: !_isPasswordVisible,
+                  decoration: InputDecoration(
+                    labelText: 'Enter Password to Unlock',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 48),
-
-            TextFormField(
-              controller: _passwordController,
-              obscureText: !_isPasswordVisible, 
-              decoration: InputDecoration(
-                labelText: 'Enter Password to Unlock',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  
-                  
                 ),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: mqttService.isConnected ? () => _unlockSafe(mqttService) : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    // -->> (Step 3) Toggle the state when the icon is pressed <<--
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
+                    backgroundColor: Colors.green,
+                  ),
+                  child: const Text(
+                    'Unlock Safe',
+                    style: TextStyle(fontSize: 18),
+                  ),
                 ),
-              ),
-            
-            ),
-            const SizedBox(height: 24),
-
-            ElevatedButton(
-              onPressed: _unlockSafe, // The button now calls our local function
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                backgroundColor: Colors.green,
-              ),
-              child: const Text(
-                'Unlock Safe',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

@@ -1,7 +1,6 @@
 // supabase_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-
 import '../main.dart';
 
 class SupabaseService {
@@ -92,11 +91,11 @@ class SupabaseService {
         // تأكد أن هذا الرابط هو الصحيح ويتطابق مع ما في Supabase Dashboard
         redirectTo: 'https://my-safe-control-1.web.app/#/update-password',
       );
-      return null; // Return null on success
+      return null;
     } on AuthException catch (e) {
       return e.message;
     } catch (e) {
-      return 'An unexpected error occurred.';
+      return 'An unexpected error occurred: ${e.toString()}';
     }
   }
 }

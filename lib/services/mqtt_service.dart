@@ -15,7 +15,6 @@ class MqttService with ChangeNotifier {
   bool _isConnected = false;
   bool get isConnected => _isConnected;
 
-  // New variable to store the number of wrong attempts
   int _wrongAttempts = 0;
   int get wrongAttempts => _wrongAttempts;
 
@@ -24,6 +23,7 @@ class MqttService with ChangeNotifier {
   }
 
   void _initializeClient() {
+    // 💡 تم تعديل هذا السطر ليتوافق مع لوحة تحكم HiveMQ الخاصة بك
     client = MqttBrowserClient('wss://mqtt-dashboard.com:8884/mqtt', clientIdentifier);
     client.logging(on: true);
     client.keepAlivePeriod = 20;
@@ -56,9 +56,7 @@ class MqttService with ChangeNotifier {
 
       print('Received status update: $payload');
       
-      // Check if the message contains the number of wrong attempts
       if (payload.startsWith('ALARM:')) {
-        // Extract the number and update the state
         final parts = payload.split(':');
         if (parts.length > 1) {
           try {
@@ -66,13 +64,12 @@ class MqttService with ChangeNotifier {
             _safeStatus = 'ALARM';
           } catch (e) {
             print('Failed to parse wrong attempts count: $e');
-            _wrongAttempts = 0; // Reset on parse error
+            _wrongAttempts = 0;
             _safeStatus = payload;
           }
         }
       } else {
         _safeStatus = payload;
-        // Reset wrong attempts when the status is not ALARM or LOCKED
         if (_safeStatus != 'LOCKED') {
           _wrongAttempts = 0;
         }
@@ -92,7 +89,6 @@ class MqttService with ChangeNotifier {
     print('MQTT_LOGS:: Subscribed to topic: $topic');
   }
 
-  // The corrected publish method
   void publishPassword(String password) {
     if (!_isConnected) {
       print('Not connected to MQTT broker!');
