@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'dart:convert';
+import 'supabase_service.dart';
 
 class MqttService with ChangeNotifier {
   late MqttBrowserClient client;
   final String clientIdentifier = 'flutter_client${DateTime.now().millisecondsSinceEpoch}';
+  final SupabaseService _supabaseService = SupabaseService();
 
   String _safeStatus = 'Unknown';
   String get safeStatus => _safeStatus;
@@ -15,7 +17,6 @@ class MqttService with ChangeNotifier {
   bool _isConnected = false;
   bool get isConnected => _isConnected;
 
-  // New variable to store the number of wrong attempts
   int _wrongAttempts = 0;
   int get wrongAttempts => _wrongAttempts;
 
@@ -56,26 +57,37 @@ class MqttService with ChangeNotifier {
 
       print('Received status update: $payload');
       
-      // Check if the message contains the number of wrong attempts
+      // هذا الجزء من الكود هو المسؤول عن تسجيل الأحداث في Supabase
       if (payload.startsWith('ALARM:')) {
-        // Extract the number and update the state
         final parts = payload.split(':');
         if (parts.length > 1) {
           try {
             _wrongAttempts = int.parse(parts[1]);
             _safeStatus = 'ALARM';
+            // 👈 عند استلام رسالة خطأ، يتم تسجيلها
+            _supabaseService.recordAccessLog('Wrong Password Attempt');
           } catch (e) {
             print('Failed to parse wrong attempts count: $e');
-            _wrongAttempts = 0; // Reset on parse error
+            _wrongAttempts = 0;
             _safeStatus = payload;
           }
         }
+      } else if (payload.startsWith('OPEN:')) {
+        _safeStatus = 'OPEN';
+        _wrongAttempts = 0;
+        // 👈 عند استلام رسالة الفتح، يتم تسجيلها
+        _supabaseService.recordAccessLog('Opened Safe');
+      } else if (payload == 'CLOSED') {
+        _safeStatus = 'CLOSED';
+        _wrongAttempts = 0;
+        // 👈 عند استلام رسالة الإغلاق، يتم تسجيلها
+        _supabaseService.recordAccessLog('Closed Safe');
+      } else if (payload == 'LOCKED') {
+        _safeStatus = 'LOCKED';
+        // 👈 عند استلام رسالة القفل، يتم تسجيلها
+        _supabaseService.recordAccessLog('System Locked');
       } else {
         _safeStatus = payload;
-        // Reset wrong attempts when the status is not ALARM or LOCKED
-        if (_safeStatus != 'LOCKED') {
-          _wrongAttempts = 0;
-        }
       }
       
       notifyListeners();
@@ -92,7 +104,6 @@ class MqttService with ChangeNotifier {
     print('MQTT_LOGS:: Subscribed to topic: $topic');
   }
 
-  // The corrected publish method
   void publishPassword(String password) {
     if (!_isConnected) {
       print('Not connected to MQTT broker!');

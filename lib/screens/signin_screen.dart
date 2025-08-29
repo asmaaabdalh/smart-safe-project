@@ -1,8 +1,10 @@
+// lib/screens/signin_screen.dart
+
 import 'package:flutter/material.dart';
-import '../services/supabase_service.dart'; // Import the Supabase service
-import 'home_screen.dart'; // Import the home screen
-import 'create_account_screen.dart'; // Import the create account screen
-import 'forgot_password_screen.dart'; // Import the forgot password screen
+import '../services/supabase_service.dart';
+import 'home_screen.dart';
+import 'create_account_screen.dart';
+import 'forgot_password_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -15,8 +17,6 @@ class _SignInScreenState extends State<SignInScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  
-  // -->> (Step 1) Add a state variable to track password visibility <<--
   bool _isPasswordVisible = false;
 
   final _supabaseService = SupabaseService();
@@ -52,11 +52,12 @@ class _SignInScreenState extends State<SignInScreen> {
     if (errorMessage != null) {
       _showSnackBar(errorMessage);
     } else {
-      _showSnackBar('Signed in successfully!');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
     }
 
     setState(() {
@@ -67,7 +68,10 @@ class _SignInScreenState extends State<SignInScreen> {
   void _showSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -76,42 +80,38 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign In / Sign Up'),
+        title: const Text('Sign In'),
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              // Email field
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Email',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 20),
-              
-              // -->> (Step 2) Modify the Password TextFormField <<--
               TextFormField(
                 controller: _passwordController,
-                // Use the state variable to control text visibility
-                obscureText: !_isPasswordVisible, 
+                obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  // Add the icon button to the end of the field
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   suffixIcon: IconButton(
-                    // Choose the icon based on the visibility state
                     icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+                      _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
                     ),
-                    // -->> (Step 3) Toggle the state when the icon is pressed <<--
                     onPressed: () {
                       setState(() {
                         _isPasswordVisible = !_isPasswordVisible;
@@ -136,7 +136,6 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
               ),
-              // Sign In button
               ElevatedButton(
                 onPressed: _isLoading ? null : _signIn,
                 child: _isLoading
@@ -144,8 +143,6 @@ class _SignInScreenState extends State<SignInScreen> {
                     : const Text('Sign In'),
               ),
               const SizedBox(height: 10),
-              
-              // Sign Up button
               TextButton(
                 onPressed: _isLoading ? null : () {
                   Navigator.push(

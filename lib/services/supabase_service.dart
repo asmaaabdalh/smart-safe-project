@@ -1,7 +1,6 @@
 // supabase_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-
 import '../main.dart';
 
 class SupabaseService {
@@ -85,17 +84,36 @@ class SupabaseService {
       return [];
     }
   }
+
+  // 👇🏼 NEW: This function records an access event.
+  Future<void> recordAccessLog(String action) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      print('Warning: Cannot record log, no user is signed in.');
+      return;
+    }
+    try {
+      await supabase.from('access_logs').insert({
+        'user_id': userId,
+        'action': action,
+      });
+    } catch (e) {
+      print('Error recording access log: $e');
+    }
+  }
+
   Future<String?> resetPasswordForEmail(String email) async {
     try {
       await supabase.auth.resetPasswordForEmail(
         email,
-        // redirectTo: 'com.example.smart_safe_app://login-callback/', // Optional for deep linking
+        // تأكد أن هذا الرابط هو الصحيح ويتطابق مع ما في Supabase Dashboard
+        redirectTo: 'https://my-safe-control-1.web.app/#/update-password',
       );
-      return null; // Return null on success
+      return null;
     } on AuthException catch (e) {
-      return e.message; // Return error message on failure
+      return e.message;
     } catch (e) {
-      return 'An unexpected error occurred.';
+      return 'An unexpected error occurred: ${e.toString()}';
     }
   }
 }
