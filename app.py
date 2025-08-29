@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 from supabase import create_client, Client
 from datetime import datetime
 import os
+import google.generativeai as genai   # <-- مكتبة جوجل Gemini
 
 # --- Configuration ---
 SUPABASE_URL = "https://cojyysahbrvpqtydwscz.supabase.co"
@@ -16,7 +17,6 @@ PORT = 8883
 USERNAME = "IOTclaster"
 PASSWORD = "4B&3.KpGQm28uZ>hczC!"
 
-
 # Initialize Flask App
 app = Flask(__name__)
 CORS(app)
@@ -27,6 +27,10 @@ latest_ldr = "N/A"
 
 # --- Supabase Client ---
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# --- Setup Google Gemini ---
+genai.configure(api_key=GOOGLE_API_KEY)
+model = genai.GenerativeModel("gemini-pro")  # موديل النصوص
 
 # --- MQTT Client Logic ---
 def setup_mqtt_client():
@@ -59,7 +63,6 @@ def setup_mqtt_client():
 
 mqtt_client = setup_mqtt_client()
 
-
 # --- Chatbot Route ---
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -67,16 +70,19 @@ def ask():
     question = data.get("question", "")
     print(f"Received question: {question}")
 
-    # Simple dummy answer for now
-    answer = f"You asked: {question}"
-    return jsonify({"answer": answer})
+    try:
+        response = model.generate_content(question)
+        answer = response.text.strip()
+    except Exception as e:
+        print(f"Error from Gemini: {e}")
+        answer = "Sorry, I had trouble getting an answer from AI."
 
+    return jsonify({"answer": answer})
 
 # --- Test Route ---
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Smart Safe API is running 🚀"})
-
 
 # --- Run App ---
 if __name__ == "__main__":
