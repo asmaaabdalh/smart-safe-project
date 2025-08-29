@@ -84,6 +84,24 @@ class SupabaseService {
       return [];
     }
   }
+
+  // 👇🏼 NEW: This function records an access event.
+  Future<void> recordAccessLog(String action) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      print('Warning: Cannot record log, no user is signed in.');
+      return;
+    }
+    try {
+      await supabase.from('access_logs').insert({
+        'user_id': userId,
+        'action': action,
+      });
+    } catch (e) {
+      print('Error recording access log: $e');
+    }
+  }
+
   Future<String?> resetPasswordForEmail(String email) async {
     try {
       await supabase.auth.resetPasswordForEmail(

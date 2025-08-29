@@ -25,12 +25,37 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  // ✅ This function has been modified to validate the password before publishing
   void _unlockSafe(MqttService mqttService) {
-    if (_passwordController.text.isNotEmpty) {
-      mqttService.publishPassword(_passwordController.text.trim());
+    String password = _passwordController.text.trim();
+
+    // Validate that the password consists of 4 digits only
+    if (password.length != 4 || !RegExp(r'^[0-9]+$').hasMatch(password)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Password must be exactly 4 digits long.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      // Stop the function here and do not send the password
+      return;
+    }
+
+    // If the password is valid, send it
+    if (mqttService.isConnected) {
+      mqttService.publishPassword(password);
       _passwordController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unlock command sent!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Not connected to MQTT service. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -69,50 +94,34 @@ class _HomePageState extends State<HomePage> {
         child: Consumer<MqttService>(
           builder: (context, mqttService, child) {
             return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              mqttService.isConnected ? Icons.circle : Icons.error,
-                              color: mqttService.isConnected ? Colors.green : Colors.red,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              mqttService.isConnected ? 'Connected to MQTT' : 'Connecting...',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Safe Status: ${mqttService.safeStatus}',
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        if (mqttService.wrongAttempts > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Wrong Attempts: ${mqttService.wrongAttempts}',
-                              style: const TextStyle(fontSize: 16, color: Colors.yellow),
-                            ),
-                          ),
-                      ],
-                    ),
+                const SizedBox(height: 24),
+                // Display the current safe status
+                Center(
+                  child: Text(
+                    'Safe Status: ${mqttService.safeStatus}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ),
-                const SizedBox(height: 32),
-                TextField(
+                // Display the number of failed attempts
+                if (mqttService.wrongAttempts > 0)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'Wrong Attempts: ${mqttService.wrongAttempts}',
+                        style: const TextStyle(fontSize: 16, color: Colors.red),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 48),
+                // Password input field
+                TextFormField(
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
+                  keyboardType: TextInputType.number, // ✅ Add this property to make the keyboard numeric only
                   decoration: InputDecoration(
                     labelText: 'Enter Password to Unlock',
                     border: OutlineInputBorder(
