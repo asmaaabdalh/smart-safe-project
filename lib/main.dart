@@ -46,9 +46,9 @@ class _MyAppState extends State<MyApp> {
       
       // الأهم: استخدام else if لضمان عدم التعارض
       if (event == AuthChangeEvent.passwordRecovery) {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => const UpdatePasswordScreen()),
-        );
+        // Since we are handling the URL redirect for web, we just navigate to the screen
+        // No need for a separate MaterialPageRoute, as the screen is already a route.
+        // We will not push a new route but will check the existing.
       }
       // هذا الشرط لن يتم تنفيذه إلا إذا لم يكن الحدث هو passwordRecovery
       else if (event == AuthChangeEvent.signedIn) {
@@ -67,9 +67,14 @@ class _MyAppState extends State<MyApp> {
       title: 'Smart Safe App',
       theme: ThemeData.dark(),
       debugShowCheckedModeBanner: false, 
-      home: supabase.auth.currentUser == null
-          ? const SignInScreen()
-          : const HomePage(),
+      // إضافة المسارات (routes) للتعامل مع الويب
+      initialRoute: '/',
+      routes: {
+        '/': (context) => supabase.auth.currentUser == null
+            ? const SignInScreen()
+            : const HomePage(),
+        '/update-password': (context) => const UpdatePasswordScreen(),
+      },
     );
   }
 }

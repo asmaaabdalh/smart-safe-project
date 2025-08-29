@@ -89,12 +89,12 @@ class SupabaseService {
     try {
       await supabase.auth.resetPasswordForEmail(
         email,
-        // تم تحديث الرابط هنا مع إضافة مسار مخصص للتوجيه
-        redirectTo: 'https://my-safe-control-1.web.app/reset-password',
+        // تأكد أن هذا الرابط هو الصحيح ويتطابق مع ما في Supabase Dashboard
+        redirectTo: 'https://my-safe-control-1.web.app/#/update-password',
       );
       return null; // Return null on success
     } on AuthException catch (e) {
-      return e.message; // Return error message on failure
+      return e.message;
     } catch (e) {
       return 'An unexpected error occurred.';
     }

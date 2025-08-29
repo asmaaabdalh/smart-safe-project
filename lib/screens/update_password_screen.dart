@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import 'home_screen.dart';
+// استيراد مكتبة dart:html للتعامل مع URL في تطبيقات الويب
+import 'dart:html' as html show window;
+
 
 class UpdatePasswordScreen extends StatefulWidget {
   const UpdatePasswordScreen({super.key});
@@ -17,6 +20,36 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
   bool _isLoading = false;
   // أضفنا متغير جديد للتحكم في حالة عرض كلمة المرور
   bool _isPasswordVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // استدعاء الدالة الخاصة بالويب
+    _handlePasswordReset();
+  }
+
+  // دالة خاصة بالويب للتعامل مع التوكن
+  void _handlePasswordReset() async {
+    // استخراج التوكن من URL
+    final uri = Uri.parse(html.window.location.href);
+    final fragment = uri.fragment;
+
+    // Supabase يستخدم التوكن في "fragment" وليس "query parameters"
+    final token = fragment.contains('access_token')
+        ? fragment.split('access_token=')[1].split('&')[0]
+        : null;
+
+    if (token != null) {
+      // استخدام التوكن لاستعادة الجلسة
+      try {
+        await supabase.auth.setSession(token);
+        _showSnackBar('تم تسجيل الدخول بنجاح! يمكنك الآن تحديث كلمة المرور.');
+      } catch (e) {
+        print('Error recovering session: $e');
+        _showSnackBar('حدث خطأ أثناء استعادة الجلسة.');
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -49,9 +82,9 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
         (Route<dynamic> route) => false,
       );
     } on AuthException catch (e) {
-      _showSnackBar(e.message);
+      _showSnackBar(e.message ?? 'An error occurred.');
     } catch (e) {
-      _showSnackBar('An unexpected error occurred: ${e.toString()}');
+      _showSnackBar('An unexpected error occurred.');
     }
 
     setState(() {
