@@ -1,8 +1,8 @@
 flask
 gunicorn
 flask_cors
-langchain
-langchain-openai
-python-dotenv
 paho-mqtt
+supabase
+langchain
 langchain-google-genai
+python-dotenv
