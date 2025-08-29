@@ -5,3 +5,4 @@ langchain
 langchain-openai
 python-dotenv
 paho-mqtt
+langchain-google-genai
