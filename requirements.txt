@@ -4,3 +4,4 @@ flask_cors
 langchain
 langchain-openai
 python-dotenv
+paho-mqtt
