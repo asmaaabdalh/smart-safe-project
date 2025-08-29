@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import paho.mqtt.client as mqtt
-@@ -8,205 +9,89 @@
+
 import time
 from supabase import create_client, Client
 from datetime import datetime
