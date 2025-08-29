@@ -6,3 +6,7 @@ supabase
 langchain
 langchain-google-genai
 python-dotenv
+Flask
+flask-cors
+google-generativeai
+gunicorn
